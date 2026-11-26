@@ -38,6 +38,7 @@ Requires `gh` (authenticated), `git`, and `curl`.
 - `assets/` — images
 - `CNAME` — custom domain for GitHub Pages
 - `tools/connect-site/` — the `connect-site` command, its agent skill, and a Pages workflow template
-- `.local/` — untracked; DNS backups taken before the move to GitHub Pages
+- `AGENTS.md` — notes for coding agents: rules for this repo, hosting layout, runbook, open items (`CLAUDE.md` imports it)
+- `.local/` — untracked; infrastructure identifiers, rollback steps, and DNS backups taken before the move to GitHub Pages
 - `robots.txt` — allows crawling
 - `ASSET_SOURCES.md`, `assets-manifest.json`, `VERIFICATION.md` — image provenance, checksums, and the original bundle's verification notes

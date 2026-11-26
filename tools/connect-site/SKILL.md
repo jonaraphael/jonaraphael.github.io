@@ -94,3 +94,10 @@ re-run.
 ```bash
 connect-site --list      # every Pages repo, its URL, current HTTP status
 ```
+
+## Problems with the domain itself
+
+`~/git/jonaraphael.com/AGENTS.md` holds the hosting layout (registrar, DNS,
+certificate, mail records) and a runbook for a missing certificate, HTTP not
+redirecting to HTTPS, project paths that 404, and DNS changes. Read it before
+touching the homepage repo, DNS, or any Pages domain setting.
