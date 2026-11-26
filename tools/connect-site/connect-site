@@ -184,6 +184,16 @@ if [ -n "$CNAME" ]; then
   fi
 fi
 
+# ---------------------------------------------------------------- https
+# Project sites under the user site's domain do not enforce HTTPS until told to.
+if [ "$(gh api "$API/pages" --jq .https_enforced)" != "true" ]; then
+  if gh api -X PUT "$API/pages" -F https_enforced=true >/dev/null 2>&1; then
+    say "Turned on HTTPS enforcement."
+  else
+    say "Note: could not turn on HTTPS enforcement yet; run connect-site again later to retry."
+  fi
+fi
+
 # ---------------------------------------------------------------- wait for deploy
 BUILD_TYPE=$(gh api "$API/pages" --jq .build_type)
 if [ "$BUILD_TYPE" = "workflow" ]; then
