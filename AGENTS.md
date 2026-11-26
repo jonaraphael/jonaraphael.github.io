@@ -24,6 +24,7 @@
 
 - The native Pages path is the case-sensitive repo name. For a different slug, serve a directory in this homepage deployment. Never rename or duplicate an existing repo to get a slug. Use a redirect only when the owner asks for a short link.
 - `/owl/` serves the Offline Wandering Library landing page and builder. Edit the originals in `offline-wandering-library`. The homepage's `Sync OWL pages` workflow checks the published HTML every 15 minutes and supports manual dispatch. Downloads and scripts come from the project's existing deployment.
+- `/backby` serves `backby.html`, which redirects browsers to `https://backby.date/`.
 - Run `tools/connect-site/connect-site <slug>` inside the project repo for the native path or custom-slug instructions. `connect-site --list` reports native Pages sites. This section records homepage-served aliases.
 - `fmrl.ink` and `snapandshop` have their own domains and are not under `jonaraphael.com`. `connect-site --drop-domain` moves one over; that is the owner's decision.
 
