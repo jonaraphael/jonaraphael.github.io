@@ -37,11 +37,13 @@ jobs:
             git push origin HEAD:main
           fi
 
-          # A push made with GITHUB_TOKEN needs an explicit branch Pages build.
-          # Recheck on subsequent runs so a failed build request can be retried.
-          build=$(gh api "repos/$GITHUB_REPOSITORY/pages/builds/latest")
-          if ! jq -e --arg sha "$(git rev-parse HEAD)" \
-            '.commit == $sha and (.status == "built" or .status == "building" or .status == "queued")' \
-            <<<"$build" >/dev/null; then
-            gh api --method POST "repos/$GITHUB_REPOSITORY/pages/builds"
-          fi
+          # A token-authored push may need an explicit Pages build. Checking
+          # the live files also recovers a missed publish on the next run.
+          for page in owl/index.html owl/builder.html; do
+            if ! curl --fail --silent --show-error --retry 2 --max-time 30 \
+              "https://jonaraphael.com/$page" -o "$RUNNER_TEMP/live.html" ||
+              ! cmp --silent "$page" "$RUNNER_TEMP/live.html"; then
+              gh api --method POST "repos/$GITHUB_REPOSITORY/pages/builds"
+              break
+            fi
+          done
