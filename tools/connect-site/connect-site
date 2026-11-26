@@ -3,9 +3,8 @@
 #
 # How the routing works: <owner>/<owner>.github.io is the account's user site and
 # carries the custom domain. GitHub Pages then serves every other Pages repo in the
-# account that has no custom domain of its own at <domain>/<repo-name>/. The slug is
-# therefore the repo name. Connecting a repo means: Pages on, repo name == slug,
-# no per-repo custom domain. Pushes redeploy through the repo's own Pages pipeline.
+# account that has no custom domain of its own at <domain>/<repo-name>/. A custom slug is served
+# by a directory in the homepage deployment. See SKILL.md for that procedure.
 #
 # Usage:
 #   connect-site [<slug>] [--drop-domain]   run inside the repo; slug defaults to the repo name
@@ -14,7 +13,7 @@
 # Exit codes:
 #   0  site is live at the URL and its same-origin references resolve
 #   2  usage or precondition error; nothing can be done without a different input
-#   3  follow-up edits needed in the repo (printed under "ACTION NEEDED"); fix, push, re-run
+#   3  follow-up edits needed (printed under "ACTION NEEDED"); see SKILL.md
 #   4  deploy failed, or the URL did not come up within the timeout
 set -euo pipefail
 
@@ -68,7 +67,7 @@ git rev-parse --show-toplevel >/dev/null 2>&1 || die "not inside a git repositor
 cd "$(git rev-parse --show-toplevel)"
 
 REPO_OWNER=$(gh repo view --json owner --jq .owner.login 2>/dev/null) \
-  || die "no GitHub repo found for this folder (push it to GitHub first, e.g. gh repo create --source . --push)"
+  || die "could not read this folder's GitHub repository; check the remote, gh authentication and network"
 NAME=$(gh repo view --json name --jq .name)
 DEFAULT_BRANCH=$(gh repo view --json defaultBranchRef --jq .defaultBranchRef.name)
 [ "$REPO_OWNER" = "$OWNER" ] || die "repo belongs to $REPO_OWNER; only $OWNER's repos are served under $DOMAIN"
@@ -76,7 +75,13 @@ DEFAULT_BRANCH=$(gh repo view --json defaultBranchRef --jq .defaultBranchRef.nam
 
 [ -n "$SLUG" ] || SLUG="$NAME"
 printf '%s' "$SLUG" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$' \
-  || die "invalid slug '$SLUG' (letters, digits, '.', '_', '-'; it becomes the repo name)"
+  || die "invalid slug '$SLUG' (use letters, digits, dots, underscores or hyphens)"
+
+if [ "$SLUG" != "$NAME" ]; then
+  say "ACTION NEEDED: publish /$SLUG/ in the homepage site as an alias for $OWNER/$NAME."
+  say "See the custom slug procedure in $SKILL_DIR/SKILL.md."
+  exit 3
+fi
 
 step "Checking that $DOMAIN is attached to $HOME_REPO"
 HOME_CNAME=$(gh api "repos/$HOME_REPO/pages" --jq '.cname // ""' 2>/dev/null || true)
@@ -86,31 +91,6 @@ HOME_CNAME=$(gh api "repos/$HOME_REPO/pages" --jq '.cname // ""' 2>/dev/null || 
 # A top-level file or folder in the homepage repo with the same name would shadow the project.
 if gh api "repos/$HOME_REPO/contents" --jq '.[].name' 2>/dev/null | grep -Fxq "$SLUG"; then
   die "slug '$SLUG' collides with a top-level path in $HOME_REPO; pick another slug"
-fi
-
-# ---------------------------------------------------------------- rename
-if [ "$SLUG" != "$NAME" ]; then
-  step "Renaming $OWNER/$NAME to $OWNER/$SLUG (the slug is the repo name)"
-  existing=$(gh api "repos/$OWNER/$SLUG" --jq .name 2>/dev/null || true)
-  [ "$existing" != "$SLUG" ] || die "a repo named $OWNER/$SLUG already exists"
-  gh repo rename "$SLUG" --yes
-  OLD="$NAME"; NAME="$SLUG"
-  say "Renamed. Old git URLs redirect; the old Pages path /$OLD/ stops resolving."
-
-  # Hard-coded references to the old path break assets under the new one.
-  refs=$(git grep -nIE "(/$OLD/|$OWNER\.github\.io/$OLD|[\"'=]/$OLD[\"'])" -- . \
-           ':!*.lock' ':!package-lock.json' ':!*.min.js' ':!*.map' 2>/dev/null | cut -c1-200 || true)
-  if [ -n "$refs" ]; then
-    say ""
-    say "ACTION NEEDED: the source refers to the old name '$OLD'. Update each base path or link"
-    say "to '$SLUG', commit, push, then run: connect-site"
-    say ""
-    printf '%s\n' "$refs" | head -60
-    exit 3
-  fi
-  RENAMED=1
-else
-  RENAMED=0
 fi
 
 API="repos/$OWNER/$NAME"
@@ -153,15 +133,6 @@ if ! gh api "$API/pages" >/dev/null 2>&1; then
     say "Enabling Pages (branch $src_branch, folder $src_path)"
     out=$(gh api -X POST "$API/pages" -f "source[branch]=$src_branch" -f "source[path]=$src_path" 2>&1) \
       || die "could not enable Pages: $out (Pages on a private repo requires a paid GitHub plan)"
-  fi
-elif [ "$RENAMED" = 1 ]; then
-  # Rebuild so the site is published under the new path.
-  if [ "$(gh api "$API/pages" --jq .build_type)" = "workflow" ]; then
-    wf=$(workflow_file)
-    [ -z "$wf" ] || gh workflow run "$(basename "$wf")" --ref "$DEFAULT_BRANCH" >/dev/null 2>&1 \
-      || say "Note: could not start $wf by hand; push a commit to redeploy under the new path."
-  else
-    gh api -X POST "$API/pages/builds" >/dev/null 2>&1 || true
   fi
 fi
 

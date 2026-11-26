@@ -9,7 +9,7 @@
 ## Rules
 
 - Leave `CNAME` alone. Removing or changing it detaches the domain from the homepage and from every project path.
-- Do not add a top-level file or folder whose name matches a project repo; it would shadow that project's path. Current top-level names: `assets`, `tools`, plus the files in the root.
+- Reserve project repo names for their native Pages paths. Check the homepage root and the account's repo names before assigning a custom slug.
 - Do not set a custom domain on a project repo unless the owner asks. A project with its own domain leaves `jonaraphael.com/<repo>/`.
 - Do not commit secrets or API tokens. None are stored anywhere in this folder.
 - `git pull --rebase` before pushing. GitHub writes commits to `main` itself when the custom domain is changed through the API or settings page.
@@ -22,8 +22,9 @@
 
 ## Project sites
 
-- The path is the repo name, case-sensitive. A site is connected when its repo has Pages on, no custom domain of its own, and the name the owner wants as the slug.
-- `tools/connect-site/connect-site <slug>`, run inside the project repo, does this and verifies the result. `tools/connect-site/SKILL.md` covers the cases the script hands back. `connect-site --list` prints every Pages repo with its URL and status; that listing is the source of truth for what is connected.
+- The native Pages path is the case-sensitive repo name. For a different slug, serve a directory in this homepage deployment. Never rename or duplicate an existing repo to get a slug. Use a redirect only when the owner asks for a short link.
+- `/owl/` serves the Offline Wandering Library landing page and builder. Edit the originals in `offline-wandering-library`. The homepage's `Sync OWL pages` workflow checks the published HTML every 15 minutes and supports manual dispatch. Downloads and scripts come from the project's existing deployment.
+- Run `tools/connect-site/connect-site <slug>` inside the project repo for the native path or custom-slug instructions. `connect-site --list` reports native Pages sites. This section records homepage-served aliases.
 - `fmrl.ink` and `snapandshop` have their own domains and are not under `jonaraphael.com`. `connect-site --drop-domain` moves one over; that is the owner's decision.
 
 ## Hosting layout
@@ -75,4 +76,4 @@ gh api -X PUT repos/jonaraphael/<repo>/pages -F https_enforced=true
 ## Open items (as of 2026-11-25)
 
 - `linkedmd`: 5 of the 7 files its page references return 404. The page points at `../store-assets/screenshots/*.png`, which is outside that repo's published `docs/` folder.
-- `connect-site` has run its checks, listing and verification against real repos. Its rename path, enabling Pages on a repo without it, `--drop-domain`, and the no-deployable-site exit have not run against a real repo.
+- `connect-site` has run its checks, listing and verification against real repos. Enabling Pages on a repo without it, `--drop-domain`, and the no-deployable-site exit have not run against a real repo.

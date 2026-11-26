@@ -1,6 +1,6 @@
 ---
 name: connect-site
-description: Publish the current repo's website at jonaraphael.com/<slug>/ and keep it updating on every push. Use when the user asks to connect, publish, mount, host, or move a repo's page or site to jonaraphael.com, names a slug for a project site, or asks which projects are live under jonaraphael.com.
+description: Publish a project's site at jonaraphael.com using its existing Pages path or a custom slug in the homepage deployment. Use for project hosting, slug requests and listing connected sites.
 ---
 
 # Connect a repo's site to jonaraphael.com/<slug>/
@@ -10,13 +10,26 @@ description: Publish the current repo's website at jonaraphael.com/<slug>/ and k
 `jonaraphael/jonaraphael.github.io` is the GitHub Pages user site and carries the
 custom domain `jonaraphael.com`. GitHub Pages serves every other Pages repo in
 the account that has no custom domain of its own at
-`jonaraphael.com/<repo-name>/`. So:
+`jonaraphael.com/<repo-name>/`. The homepage can also serve its own directories.
+Always preserve the existing project repository. Never rename or duplicate it
+to obtain a slug.
 
-- The slug is the repo name, case-sensitive.
-- Connecting a repo = Pages on + repo name equals the slug + no per-repo custom domain.
-- Each push that redeploys the repo's Pages site updates the URL. No extra wiring.
+## Custom slug
 
-## Procedure
+When the requested slug differs from the repository name, publish that path in
+the existing homepage deployment. Check the homepage root and the owner's repo
+names for collisions. Reuse a directory already assigned to the same project.
+
+For example, `offline-wandering-library` publishes the library assets and the
+homepage serves its landing page and builder under `/owl/`. See
+`tools/sync-owl.py` and `.github/workflows/sync-owl.yml` in the homepage
+repo. Adapt the entry pages, links, routing and asset URLs to the project.
+Keep the pages updated from the project's deployment and verify direct entry,
+navigation, and a representative asset or download at the live URL. A request
+to serve the site at a slug means the address stays there. Use a redirect
+when the owner specifically wants a short link.
+
+## Default project path
 
 Run from inside the repo:
 
@@ -25,8 +38,7 @@ connect-site <slug>      # slug optional; defaults to the repo name
 ```
 
 The script (`~/git/jonaraphael.com/tools/connect-site/connect-site`, on PATH
-via `~/.local/bin`) checks preconditions, renames the repo when the slug differs
-from its name, turns Pages on, waits for the deploy, then fetches
+via `~/.local/bin`) checks preconditions, turns Pages on, waits for the deploy, then fetches
 `https://jonaraphael.com/<slug>/` and every same-origin file the page
 references. Follow its exit code:
 
@@ -34,12 +46,8 @@ references. Follow its exit code:
 |---|---|---|
 | 0 | Live and verified | Report the URL. |
 | 2 | Precondition failed | Relay the message; a different slug or a user decision is needed. |
-| 3 | Repo edits needed, listed under `ACTION NEEDED` | Make the edits, commit, push, run `connect-site` again (no slug needed after a rename). Repeat until 0. |
+| 3 | Follow-up edits | For a custom slug, follow the custom slug procedure above. For the default path, make the listed changes, push, and rerun the command. |
 | 4 | Deploy failed or URL never came up | Read the failing run with `gh run list` / `gh run view --log-failed`, fix, push, re-run. |
-
-If the folder has no GitHub repo yet, create one named after the slug
-(`gh repo create jonaraphael/<slug> --source . --push`, public unless the user
-says otherwise), then run the script.
 
 ### Exit 3 cases
 
@@ -48,8 +56,7 @@ says otherwise), then run the script.
 for this project, and make the build emit the base path `/<slug>/`. Verify the
 build locally before pushing.
 
-**References to the old name after a rename, or references that do not
-resolve.** The site is served from `/<slug>/`, not `/`. Set the base path where
+**References that do not resolve.** The default project site is served from `/<repo-name>/`. Set the base path where
 the project defines it, then fix remaining hard-coded links:
 
 - Vite: `base` in `vite.config.*` (or the env var the config reads)
@@ -63,8 +70,7 @@ the project defines it, then fix remaining hard-coded links:
   README links
 
 Prefer deriving the base path from the repo name in the workflow
-(`${{ github.event.repository.name }}`) over hard-coding it, so a later rename
-needs no source edits.
+(`${{ github.event.repository.name }}`).
 
 **CNAME file after `--drop-domain`.** Delete the listed file, commit, push,
 re-run.
@@ -74,9 +80,6 @@ re-run.
 - **Repos with their own domain** (`fmrl.ink`, `snapandshop`): the script stops
   with exit 2. Pass `--drop-domain` only when the user has said that domain
   should stop serving the site.
-- **Renames**: asking for a slug that differs from the repo name is the
-  authorization to rename. Say in the report that the GitHub URL changed, old
-  git URLs redirect, and the old Pages path no longer resolves.
 - **Homepage card**: add or edit a project entry in
   `~/git/jonaraphael.com/index.html` (the local clone of
   `jonaraphael/jonaraphael.github.io`) only when the user asks.
@@ -94,6 +97,8 @@ re-run.
 ```bash
 connect-site --list      # every Pages repo, its URL, current HTTP status
 ```
+
+Homepage-served aliases are recorded under Project sites in the homepage's `AGENTS.md`.
 
 ## Problems with the domain itself
 

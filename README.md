@@ -8,7 +8,9 @@ The page is static: `index.html` with embedded CSS, images under `assets/`, no J
 
 This repo is the account's user site and carries the custom domain (`CNAME`). GitHub Pages therefore serves every other Pages-enabled repo in the account that has no custom domain of its own at `jonaraphael.com/<repo-name>/`, and redirects `jonaraphael.github.io/<repo-name>/` there. A push to a project repo redeploys that project's path.
 
-The path segment is the repo name, case-sensitive. A top-level file or folder in this repo with the same name as a project repo would collide with that project's path.
+The default project path is the case-sensitive repo name. For a custom slug, publish a directory in this homepage site and keep the existing project repository. Choose a path that is free in both the homepage root and the account's repo names.
+
+The [Offline Wandering Library](https://jonaraphael.com/owl/) uses this arrangement. The homepage serves its two HTML pages at `/owl/` and `/owl/builder.html`. Scripts, catalogs and downloads come from the library's existing deployment. The `Sync OWL pages` workflow checks for updates every 15 minutes and can also be run manually.
 
 ## Connecting a project: `connect-site`
 
@@ -19,7 +21,7 @@ connect-site <slug>      # slug optional; defaults to the repo name
 connect-site --list      # every Pages repo, its URL, current HTTP status
 ```
 
-It turns Pages on if needed, renames the repo when the slug differs from its name, waits for the deploy, and checks that the page and the files it references resolve. `SKILL.md` tells an agent how to handle the cases the script hands back (adding a build workflow, fixing base paths).
+For the default path, the command enables Pages if needed and verifies the deployed page and its assets. For a custom slug it points to the homepage mounting procedure in `tools/connect-site/SKILL.md`.
 
 Install on a machine (the GitHub repo is `jonaraphael.github.io`; the local folder name is free):
 
