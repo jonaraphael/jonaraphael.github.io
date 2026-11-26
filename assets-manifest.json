@@ -1,0 +1,122 @@
+[
+  {
+    "file": "assets/cerulean-header.avif",
+    "source_url": "https://cdn.prod.website-files.com/69cb8fe119073ff476c95c6e/69e616ea86b6e9aedf37e777_cerulean-header-img.avif",
+    "source_page": null,
+    "provenance": "Exact URL recovered from the uploaded jona-portfolio-static-hosting.zip; original downloaded bytes preserved.",
+    "credit": "",
+    "format": "AVIF",
+    "width": 2880,
+    "height": 1100,
+    "bytes": 228839,
+    "sha256": "18ff0a96994154dfb1f13ee32edc140036e613ce72aee05c709f1993b7c25291"
+  },
+  {
+    "file": "assets/therecraft-drone.jpg",
+    "source_url": "https://spectrum.ieee.org/media-library/therecrafts-lifting-body-drone.jpg?height=826&id=25591598&width=1200",
+    "source_page": null,
+    "provenance": "Exact URL recovered from the uploaded jona-portfolio-static-hosting.zip; original downloaded bytes preserved.",
+    "credit": "ThereCraft, via IEEE Spectrum.",
+    "format": "JPEG",
+    "width": 1200,
+    "height": 826,
+    "bytes": 102623,
+    "sha256": "16b98ec6d616d9c8025227994fba331aad6732c1e6c9eee1c69d29337e414f1a"
+  },
+  {
+    "file": "assets/backby-create.png",
+    "source_url": "https://backby.date/screen-create-en.png",
+    "source_page": null,
+    "provenance": "Exact URL recovered from the uploaded jona-portfolio-static-hosting.zip; original downloaded bytes preserved.",
+    "credit": "",
+    "format": "PNG",
+    "width": 750,
+    "height": 1626,
+    "bytes": 230058,
+    "sha256": "702f1f79c1ac453ef1ed503f8fb7741b3911774496bfef3975a6e4c4ad70eafe"
+  },
+  {
+    "file": "assets/backby-active.png",
+    "source_url": "https://backby.date/screen-active-en.png",
+    "source_page": null,
+    "provenance": "Exact URL recovered from the uploaded jona-portfolio-static-hosting.zip; original downloaded bytes preserved.",
+    "credit": "",
+    "format": "PNG",
+    "width": 750,
+    "height": 1626,
+    "bytes": 133426,
+    "sha256": "ed70373e46bb1fa633e5c85492e08f5964d9482ab571d099562c30d4fc9bea0e"
+  },
+  {
+    "file": "assets/csv-dark.png",
+    "source_url": "https://raw.githubusercontent.com/jonaraphael/csv/main/images/Screenshot_dark.png",
+    "source_page": null,
+    "provenance": "Exact URL recovered from the uploaded jona-portfolio-static-hosting.zip; original downloaded bytes preserved.",
+    "credit": "",
+    "format": "PNG",
+    "width": 3024,
+    "height": 1964,
+    "bytes": 1025874,
+    "sha256": "68f3ed2533cacfa9e795aef6e124fdf3fb62605e6944895e526be336f94472b3"
+  },
+  {
+    "file": "assets/linkedmd-demo.png",
+    "source_url": "https://raw.githubusercontent.com/jonaraphael/linkedmd/main/store-assets/screenshots/demo1280.png",
+    "source_page": null,
+    "provenance": "Exact URL recovered from the uploaded jona-portfolio-static-hosting.zip; original downloaded bytes preserved.",
+    "credit": "",
+    "format": "PNG",
+    "width": 1280,
+    "height": 800,
+    "bytes": 1260312,
+    "sha256": "a9feb8981067a9a80165872cdfe24f553dee4781f389f253406fac86758d330e"
+  },
+  {
+    "file": "assets/snapandshop-checklist.png",
+    "source_url": "https://raw.githubusercontent.com/jonaraphael/snapandshop/main/docs/images/marketing/02-list-checklist.png",
+    "source_page": null,
+    "provenance": "Exact URL recovered from the uploaded jona-portfolio-static-hosting.zip; original downloaded bytes preserved.",
+    "credit": "",
+    "format": "PNG",
+    "width": 1170,
+    "height": 1992,
+    "bytes": 263030,
+    "sha256": "96be6e03a7ed1ad143f1dfd9abdf479a75e56b807aef4eeca3bc2fe7dc21ddf5"
+  },
+  {
+    "file": "assets/osmo-tech.jpg",
+    "source_url": "https://www.globalseafood.org/wp-content/uploads/2018/08/Osmo_tech_1000.jpg",
+    "source_page": "https://www.globalseafood.org/advocate/global-aquaculture-innovation-award-finalist-osmo-systems/",
+    "provenance": "Original-resolution variant explicitly listed in source article img srcset. Source article was linked by the user-provided original package; added to replace CSS illustration.",
+    "credit": "Photo courtesy Osmo Systems, via Responsible Seafood Advocate / Global Seafood Alliance.",
+    "format": "JPEG",
+    "width": 1000,
+    "height": 667,
+    "bytes": 485662,
+    "sha256": "1e111b7088893d5eef16520c24404feaa68abb7421b52ce0b8682dae2e3e162a"
+  },
+  {
+    "file": "assets/lumeter-metering-module.jpg",
+    "source_url": "https://jona-raphael-portfolio.soragen.chatgpt.site/assets/engineering/metering-module.jpg",
+    "source_page": "https://jona-raphael-portfolio.soragen.chatgpt.site/",
+    "provenance": "Recovered original asset from live portfolio v4. Source card is Lumeter Networks, image alt Compact electricity metering hardware, figcaption Pay-as-you-go metering hardware.",
+    "credit": "Original portfolio asset; no separate photographer credit found in live HTML.",
+    "format": "JPEG",
+    "width": 628,
+    "height": 630,
+    "bytes": 44227,
+    "sha256": "3c558b7c4e7c602d8c9fd5c630a35341d1eaa5ddba474a253daa8903ecd4a015"
+  },
+  {
+    "file": "assets/jona-headshot.jpg",
+    "source_url": "https://jona-raphael-portfolio.soragen.chatgpt.site/assets/jona.jpg",
+    "source_page": null,
+    "provenance": "Original headshot restored from the earlier Sites portfolio source; original bytes preserved.",
+    "credit": "Original portfolio photograph of Jona Raphael.",
+    "format": "JPEG",
+    "width": 512,
+    "height": 512,
+    "bytes": 328910,
+    "sha256": "fa4139e77b0feeda56751c0fa9031d0f973504de1868bb43496977c4cc519039"
+  }
+]
