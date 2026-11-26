@@ -26,6 +26,7 @@
 - `/owl/` serves the Offline Wandering Library landing page and builder. Edit the originals in `offline-wandering-library`. The homepage's `Sync OWL pages` workflow checks the published HTML every 15 minutes and supports manual dispatch. Downloads and scripts come from the project's existing deployment.
 - `/backby` serves `backby.html`, which redirects browsers to `https://backby.date/`.
 - `/cerulean` serves `cerulean.html`, which redirects browsers to `https://cerulean.org/`.
+- `/csv` serves `csv.html`, which redirects browsers to the Visual Studio Marketplace listing for `ReprEng.csv`.
 - Run `tools/connect-site/connect-site <slug>` inside the project repo for the native path or custom-slug instructions. `connect-site --list` reports native Pages sites. This section records homepage-served aliases.
 - `fmrl.ink` and `snapandshop` have their own domains and are not under `jonaraphael.com`. `connect-site --drop-domain` moves one over; that is the owner's decision.
 
