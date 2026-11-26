@@ -1,0 +1,269 @@
+#!/usr/bin/env bash
+# connect-site — serve the current repo's GitHub Pages site at https://<domain>/<slug>/
+#
+# How the routing works: <owner>/<owner>.github.io is the account's user site and
+# carries the custom domain. GitHub Pages then serves every other Pages repo in the
+# account that has no custom domain of its own at <domain>/<repo-name>/. The slug is
+# therefore the repo name. Connecting a repo means: Pages on, repo name == slug,
+# no per-repo custom domain. Pushes redeploy through the repo's own Pages pipeline.
+#
+# Usage:
+#   connect-site [<slug>] [--drop-domain]   run inside the repo; slug defaults to the repo name
+#   connect-site --list                     every Pages repo in the account, its URL and HTTP status
+#
+# Exit codes:
+#   0  site is live at the URL and its same-origin references resolve
+#   2  usage or precondition error; nothing can be done without a different input
+#   3  follow-up edits needed in the repo (printed under "ACTION NEEDED"); fix, push, re-run
+#   4  deploy failed, or the URL did not come up within the timeout
+set -euo pipefail
+
+DOMAIN="${CONNECT_SITE_DOMAIN:-jonaraphael.com}"
+OWNER="${CONNECT_SITE_OWNER:-jonaraphael}"
+TIMEOUT="${CONNECT_SITE_TIMEOUT:-600}"   # seconds to wait for a deploy
+HOME_REPO="$OWNER/$OWNER.github.io"
+
+SELF="$0"; [ -L "$SELF" ] && SELF="$(readlink "$SELF")"
+SKILL_DIR="$(cd "$(dirname "$SELF")" && pwd)"
+
+say()  { printf '%s\n' "$*"; }
+step() { printf '\n==> %s\n' "$*"; }
+die()  { printf 'ERROR: %s\n' "$*" >&2; exit "${2:-2}"; }
+need() { command -v "$1" >/dev/null 2>&1 || die "missing required tool: $1"; }
+
+http_code() { curl -s -o /dev/null -L --max-time 20 -w '%{http_code}' "$1" 2>/dev/null || true; }
+
+usage() { sed -n '2,18p' "$SELF" | sed 's/^# \{0,1\}//'; }
+
+# ---------------------------------------------------------------- --list
+list_sites() {
+  printf '%-32s %-52s %s\n' REPO URL HTTP
+  gh api --paginate "user/repos?per_page=100&affiliation=owner" \
+    --jq '.[] | select(.has_pages) | .name' | sort -f | while read -r name; do
+    cname=$(gh api "repos/$OWNER/$name/pages" --jq '.cname // ""' 2>/dev/null || true)
+    if [ "$name" = "$OWNER.github.io" ]; then url="https://$DOMAIN/"
+    elif [ -n "$cname" ]; then url="https://$cname/"
+    else url="https://$DOMAIN/$name/"; fi
+    printf '%-32s %-52s %s\n' "$name" "$url" "$(http_code "$url")"
+  done
+}
+
+# ---------------------------------------------------------------- args
+SLUG=""; DROP_DOMAIN=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -h|--help)      usage; exit 0 ;;
+    --list)         need gh; need curl; list_sites; exit 0 ;;
+    --drop-domain)  DROP_DOMAIN=1 ;;
+    -*)             die "unknown option: $1" ;;
+    *)              [ -z "$SLUG" ] || die "only one slug allowed"; SLUG="$1" ;;
+  esac
+  shift
+done
+
+need gh; need git; need curl
+
+# ---------------------------------------------------------------- repo
+git rev-parse --show-toplevel >/dev/null 2>&1 || die "not inside a git repository"
+cd "$(git rev-parse --show-toplevel)"
+
+REPO_OWNER=$(gh repo view --json owner --jq .owner.login 2>/dev/null) \
+  || die "no GitHub repo found for this folder (push it to GitHub first, e.g. gh repo create --source . --push)"
+NAME=$(gh repo view --json name --jq .name)
+DEFAULT_BRANCH=$(gh repo view --json defaultBranchRef --jq .defaultBranchRef.name)
+[ "$REPO_OWNER" = "$OWNER" ] || die "repo belongs to $REPO_OWNER; only $OWNER's repos are served under $DOMAIN"
+[ "$NAME" != "$OWNER.github.io" ] || die "this is the homepage repo; it is served at https://$DOMAIN/"
+
+[ -n "$SLUG" ] || SLUG="$NAME"
+printf '%s' "$SLUG" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$' \
+  || die "invalid slug '$SLUG' (letters, digits, '.', '_', '-'; it becomes the repo name)"
+
+step "Checking that $DOMAIN is attached to $HOME_REPO"
+HOME_CNAME=$(gh api "repos/$HOME_REPO/pages" --jq '.cname // ""' 2>/dev/null || true)
+[ "$HOME_CNAME" = "$DOMAIN" ] \
+  || die "$HOME_REPO does not carry the custom domain $DOMAIN (found: '${HOME_CNAME:-none}'); project paths under $DOMAIN depend on it"
+
+# A top-level file or folder in the homepage repo with the same name would shadow the project.
+if gh api "repos/$HOME_REPO/contents" --jq '.[].name' 2>/dev/null | grep -Fxq "$SLUG"; then
+  die "slug '$SLUG' collides with a top-level path in $HOME_REPO; pick another slug"
+fi
+
+# ---------------------------------------------------------------- rename
+if [ "$SLUG" != "$NAME" ]; then
+  step "Renaming $OWNER/$NAME to $OWNER/$SLUG (the slug is the repo name)"
+  existing=$(gh api "repos/$OWNER/$SLUG" --jq .name 2>/dev/null || true)
+  [ "$existing" != "$SLUG" ] || die "a repo named $OWNER/$SLUG already exists"
+  gh repo rename "$SLUG" --yes
+  OLD="$NAME"; NAME="$SLUG"
+  say "Renamed. Old git URLs redirect; the old Pages path /$OLD/ stops resolving."
+
+  # Hard-coded references to the old path break assets under the new one.
+  refs=$(git grep -nIE "(/$OLD/|$OWNER\.github\.io/$OLD|[\"'=]/$OLD[\"'])" -- . \
+           ':!*.lock' ':!package-lock.json' ':!*.min.js' ':!*.map' 2>/dev/null | cut -c1-200 || true)
+  if [ -n "$refs" ]; then
+    say ""
+    say "ACTION NEEDED: the source refers to the old name '$OLD'. Update each base path or link"
+    say "to '$SLUG', commit, push, then run: connect-site"
+    say ""
+    printf '%s\n' "$refs" | head -60
+    exit 3
+  fi
+  RENAMED=1
+else
+  RENAMED=0
+fi
+
+API="repos/$OWNER/$NAME"
+
+# ---------------------------------------------------------------- local state
+if [ -n "$(git status --porcelain 2>/dev/null)" ]; then
+  say "Note: uncommitted local changes are not part of the deployed site."
+fi
+if git rev-parse '@{u}' >/dev/null 2>&1 && [ "$(git rev-parse HEAD)" != "$(git rev-parse '@{u}')" ]; then
+  say "Note: local HEAD differs from its upstream; the site reflects what is pushed."
+fi
+
+# ---------------------------------------------------------------- pages on
+workflow_file() { grep -lE 'actions/deploy-pages@' .github/workflows/*.y*ml 2>/dev/null | head -1 || true; }
+remote_has()    { gh api "repos/$OWNER/$NAME/contents/$1?ref=$2" --jq .name >/dev/null 2>&1; }
+
+step "Checking GitHub Pages on $OWNER/$NAME"
+if ! gh api "$API/pages" >/dev/null 2>&1; then
+  wf=$(workflow_file)
+  if [ -n "$wf" ] && remote_has "$wf" "$DEFAULT_BRANCH"; then
+    say "Enabling Pages (GitHub Actions build via $wf)"
+    out=$(gh api -X POST "$API/pages" -f build_type=workflow 2>&1) || die "could not enable Pages: $out"
+    gh workflow run "$(basename "$wf")" --ref "$DEFAULT_BRANCH" >/dev/null 2>&1 \
+      || say "Note: could not start $wf by hand; the next push to $DEFAULT_BRANCH deploys."
+  else
+    src_branch=""; src_path=""
+    if   remote_has index.html "$DEFAULT_BRANCH";      then src_branch="$DEFAULT_BRANCH"; src_path="/"
+    elif remote_has docs/index.html "$DEFAULT_BRANCH"; then src_branch="$DEFAULT_BRANCH"; src_path="/docs"
+    elif remote_has index.html gh-pages;               then src_branch="gh-pages";        src_path="/"
+    fi
+    if [ -z "$src_branch" ]; then
+      say ""
+      say "ACTION NEEDED: no deployable site found on GitHub (no index.html at the root or in"
+      say "docs/ on $DEFAULT_BRANCH, no gh-pages branch, no workflow using actions/deploy-pages)."
+      say "Add .github/workflows/pages.yml that builds the site and deploys it with"
+      say "actions/deploy-pages (template: $SKILL_DIR/pages-workflow.yml),"
+      say "commit, push, then run: connect-site"
+      exit 3
+    fi
+    say "Enabling Pages (branch $src_branch, folder $src_path)"
+    out=$(gh api -X POST "$API/pages" -f "source[branch]=$src_branch" -f "source[path]=$src_path" 2>&1) \
+      || die "could not enable Pages: $out (Pages on a private repo requires a paid GitHub plan)"
+  fi
+elif [ "$RENAMED" = 1 ]; then
+  # Rebuild so the site is published under the new path.
+  if [ "$(gh api "$API/pages" --jq .build_type)" = "workflow" ]; then
+    wf=$(workflow_file)
+    [ -z "$wf" ] || gh workflow run "$(basename "$wf")" --ref "$DEFAULT_BRANCH" >/dev/null 2>&1 \
+      || say "Note: could not start $wf by hand; push a commit to redeploy under the new path."
+  else
+    gh api -X POST "$API/pages/builds" >/dev/null 2>&1 || true
+  fi
+fi
+
+# ---------------------------------------------------------------- own domain
+CNAME=$(gh api "$API/pages" --jq '.cname // ""')
+if [ -n "$CNAME" ]; then
+  if [ "$DROP_DOMAIN" = 1 ]; then
+    step "Removing this repo's own custom domain ($CNAME)"
+    printf '{"cname":null}' | gh api -X PUT "$API/pages" --input - >/dev/null
+    cname_files=$(git ls-files CNAME docs/CNAME public/CNAME 2>/dev/null || true)
+    if [ -n "$cname_files" ]; then
+      say ""
+      say "ACTION NEEDED: delete the CNAME file(s) below, commit, push, then run: connect-site"
+      say "(a branch build re-applies the domain from that file)"
+      printf '%s\n' "$cname_files"
+      exit 3
+    fi
+  else
+    die "this repo's Pages site uses its own domain ($CNAME), so it is not served at $DOMAIN/$SLUG/. Re-run with --drop-domain to detach $CNAME and serve it under $DOMAIN instead."
+  fi
+fi
+
+# ---------------------------------------------------------------- wait for deploy
+BUILD_TYPE=$(gh api "$API/pages" --jq .build_type)
+if [ "$BUILD_TYPE" = "workflow" ]; then
+  want_branch="$DEFAULT_BRANCH"
+else
+  want_branch=$(gh api "$API/pages" --jq '.source.branch // ""')
+fi
+WANT_SHA=$(gh api "$API/branches/$want_branch" --jq .commit.sha 2>/dev/null || true)
+
+step "Waiting for the Pages deploy of ${WANT_SHA:0:7} ($want_branch, up to ${TIMEOUT}s)"
+deadline=$(( $(date +%s) + TIMEOUT )); deployed=0
+while [ "$(date +%s)" -lt "$deadline" ]; do
+  line=$(gh api "$API/deployments?environment=github-pages&per_page=1" --jq '.[0] | "\(.id) \(.sha)"' 2>/dev/null || true)
+  dep_id=${line%% *}; dep_sha=${line##* }
+  if [ -n "$dep_id" ] && [ "$dep_id" != "null" ]; then
+    state=$(gh api "$API/deployments/$dep_id/statuses" --jq '.[0].state // ""' 2>/dev/null || true)
+    if [ "$dep_sha" = "$WANT_SHA" ] || [ -z "$WANT_SHA" ]; then
+      case "$state" in
+        success)       deployed=1; break ;;
+        failure|error) die "the Pages deploy failed; see https://github.com/$OWNER/$NAME/actions" 4 ;;
+      esac
+    fi
+  fi
+  sleep 8
+done
+if [ "$deployed" = 1 ]; then
+  say "Deployed."
+else
+  say "Note: no finished deploy of ${WANT_SHA:0:7} seen (a workflow with path filters skips some commits). Checking the URL anyway."
+fi
+
+# ---------------------------------------------------------------- verify
+URL="https://$DOMAIN/$SLUG/"
+step "Verifying $URL"
+page=$(mktemp); trap 'rm -f "$page"' EXIT
+code=""; final=""
+for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+  out=$(curl -s -L --max-time 20 -o "$page" -w '%{http_code} %{url_effective}' "$URL" 2>/dev/null || true)
+  code=${out%% *}; final=${out#* }
+  [ "$code" = "200" ] && break
+  sleep 8
+done
+[ "$code" = "200" ] || die "$URL returned HTTP ${code:-none}; see https://github.com/$OWNER/$NAME/actions" 4
+
+case "$final" in
+  "https://$DOMAIN/"*) ;;
+  *) die "$URL redirected off the domain to $final" 4 ;;
+esac
+
+# Check that same-origin files referenced by the page resolve (catches wrong base paths).
+origin="https://$DOMAIN"; base="${final%/*}/"; total=0; failed=0; failures=""
+refs=$(grep -oE "(src|href)=[\"'][^\"']+[\"']" "$page" 2>/dev/null \
+        | sed -E "s/^(src|href)=[\"']//; s/[\"']\$//; s/&amp;/\&/g" | sort -u | head -80 || true)
+while IFS= read -r ref; do
+  [ -n "$ref" ] || continue
+  case "$ref" in
+    \#*|mailto:*|tel:*|data:*|javascript:*|blob:*|//*) continue ;;
+    "$origin"/*) u="$ref" ;;
+    http://*|https://*) continue ;;
+    /*) u="$origin$ref" ;;
+    *)  u="$base$ref" ;;
+  esac
+  u="${u%%#*}"
+  total=$((total + 1))
+  c=$(http_code "$u")
+  if [ "$c" != "200" ]; then failed=$((failed + 1)); failures="$failures  $c  $ref"$'\n'; fi
+done <<EOF
+$refs
+EOF
+
+if [ "$failed" -gt 0 ]; then
+  say ""
+  say "ACTION NEEDED: $failed of $total same-origin references on the page do not resolve."
+  say "The usual cause is a base path that is not '/$SLUG/'. Fix it, commit, push, then run: connect-site"
+  say ""
+  printf '%s' "$failures"
+  exit 3
+fi
+
+say "HTTP 200; $total of $total same-origin references resolve."
+say ""
+say "LIVE: $URL"
+say "Every push that redeploys this repo's Pages site updates that URL."
